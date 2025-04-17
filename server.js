@@ -1,50 +1,62 @@
 const express = require("express");
-
-// middleware để convert data gửi từ client (json) -> data cho server dùng (object)
-const bodyParser = require("body-parser");
-
-// path xử lý những string liên quan đến đường dẫn
+const http = require("http");
+const { Server } = require("socket.io");
 const path = require("path");
-const lib = require("./models");
+const models = require("./models");
 
 const app = express();
-const port = 3007;
+const server = http.createServer(app);
+const io = new Server(server);
 
-app.use(bodyParser.json());
-
-// Khởi tạo DB ORM khi khởi động server
-lib.init().then(() => {
-  console.log("Database synced!");
+// Initialize database
+models.init().then(() => {
+    console.log("Database initialized");
 });
 
-// API ghi dữ liệu
-app.post("/add", async (req, res) => {
-  try {
-    const { key, value } = req.body;
-    await lib.write(key, value);
-    res.send("Insert a new record successfully!");
-  } catch (err) {
-    res.send(err.toString());
-  }
+// Serve static files
+app.use(express.static(path.join(__dirname)));
+
+// API endpoint to get value
+app.get("/get/:key", async (req, res) => {
+    const value = await models.view(req.params.key);
+    res.send(value || "No value found");
 });
 
-// API lấy dữ liệu
-app.get("/get/:id", async (req, res) => {
-  try {
-    const id = req.params.id;
-    const value = await lib.view(id);
-    res.status(200).send(value);
-  } catch (err) {
-    res.send(err);
-  }
+// API endpoint to set value
+app.get("/set/:key/:value", async (req, res) => {
+    await models.write(req.params.key, req.params.value);
+    // Emit event through socket.io when data changes
+    io.emit("valueChanged", {
+        key: req.params.key,
+        value: req.params.value,
+    });
+    res.send("Value set successfully");
 });
 
-// API lấy dữ liệu
+// API endpoint to display value
 app.get("/viewer/:id", (req, res) => {
-  res.sendFile(path.join(__dirname, "viewer.html"));
+    res.sendFile(path.join(__dirname, "viewer.html"));
 });
 
-// Bật server & lắng nghe request từ client
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+// Socket.IO connection
+io.on("connection", (socket) => {
+    console.log("A client connected");
+
+    socket.on("subscribe", async (key) => {
+        console.log(`Client subscribed to key: ${key}`);
+        socket.join(key);
+        // Send current value to newly connected client
+        const value = await models.view(key);
+        socket.emit("initialValue", { key, value });
+    });
+
+    socket.on("disconnect", () => {
+        console.log("A client disconnected");
+    });
+});
+
+// Start server
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
 });

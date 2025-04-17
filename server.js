@@ -7,6 +7,8 @@ const models = require("./models");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
+const TOPIC = 'my-topic';
+const { producer, consumer } = require('./kafka_client');
 
 // Initialize database
 models.init().then(() => {
@@ -23,14 +25,13 @@ app.get("/get/:key", async (req, res) => {
 });
 
 // API endpoint to set value
-app.get("/set/:key/:value", async (req, res) => {
-    await models.write(req.params.key, req.params.value);
-    // Emit event through socket.io when data changes
-    io.emit("valueChanged", {
-        key: req.params.key,
-        value: req.params.value,
+app.post("/set/:key/:value", async (req, res) => {
+    // Send message to Kafka
+    await producer.send({
+        topic: TOPIC,
+        messages: [{ key: String(req.params.key), value: String(req.params.value) }],
     });
-    res.send("Value set successfully");
+    res.send("Message published to Kafka");
 });
 
 // API endpoint to display value
@@ -57,6 +58,35 @@ io.on("connection", (socket) => {
 
 // Start server
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+const start = async () => {
+    try {
+        await producer.connect();
+        await consumer.connect();
+        await consumer.subscribe({ topic: TOPIC, fromBeginning: false });
+
+        consumer.run({
+            eachMessage: async ({ message }) => {
+                const key = message.key.toString();
+                const value = message.value.toString();
+                console.log(`Received data: ${value} to key ${key}`);
+
+                // Save to DB
+                await models.write(key, value);
+                
+                // Broadcast via WebSocket
+                io.emit("valueChanged", {
+                    key: key,
+                    value: value,
+                });
+            },
+        });
+
+        server.listen(PORT, () => {
+            console.log(`🚀 Server running at http://localhost:${PORT}`);
+        });
+    } catch (err) {
+        console.error('Startup error:', err);
+    }
+};
+
+start();

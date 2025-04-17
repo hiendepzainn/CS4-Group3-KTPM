@@ -1,32 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Viewer</title>
-  </head>
-  <body>
-    <h1>Your key value is:</h1>
-    <p id="value">loading...</p>
-    <script>
-      const locationPath = window.location.pathname.split("/");
-      const key = locationPath[locationPath.length - 1];
-      async function fetchValue() {
-        try {
-          const response = await fetch(`/get/${key}`);
-          if (response.ok) {
-            const data = await response.text();
-            document.getElementById("value").innerText = data;
-          } else {
-            console.error("Failed to fetch value");
-          }
-        } catch (error) {
-          console.error("Error:", error);
-        }
-      }
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Viewer</title>
+        <!-- Add Socket.IO client library -->
+        <script src="/socket.io/socket.io.js"></script>
+    </head>
+    <body>
+        <h1>Your key value is:</h1>
+        <p id="value">loading...</p>
+        <script>
+            // Connect to Socket.IO server
+            const socket = io();
 
-      fetchValue();
-      setInterval(fetchValue, 1000);
-    </script>
-  </body>
+            // Get key from URL
+            const locationPath = window.location.pathname.split("/");
+            const key = locationPath[locationPath.length - 1];
+
+            // Subscribe to updates for this specific key
+            socket.emit("subscribe", key);
+
+            // Handle initial value
+            socket.on("initialValue", (data) => {
+                if (data.key === key) {
+                    document.getElementById("value").innerText =
+                        data.value || "No value";
+                }
+            });
+
+            // Listen for real-time updates
+            socket.on("valueChanged", (data) => {
+                if (data.key === key) {
+                    document.getElementById("value").innerText = data.value;
+                }
+            });
+
+            // Fallback to fetch initial value if Socket.IO initialization fails
+            async function fetchValue() {
+                try {
+                    const response = await fetch(`/get/${key}`);
+                    if (response.ok) {
+                        const data = await response.text();
+                        document.getElementById("value").innerText = data;
+                    } else {
+                        console.error("Failed to fetch value");
+                    }
+                } catch (error) {
+                    console.error("Error:", error);
+                }
+            }
+
+            // Initial fetch as fallback
+            fetchValue();
+        </script>
+    </body>
 </html>

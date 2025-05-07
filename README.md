@@ -25,7 +25,7 @@ Trên đây là một chương trình đơn giản sử dụng **express.js**, c
 ## 3.	NÂNG CẤP HỆ THỐNG
 ### 3.1. Thêm lớp persistence qua ORM <br>
 - Ý tưởng: <br>
-  Chuyển đổi việc viết truy vấn cơ sở dữ liệu bằng SQL thủ công sang dùng ORM (Object-Relational Mapping): Sequelize <br> <br>
+  Chuyển đổi việc viết truy vấn cơ sở dữ liệu bằng SQL thủ công sang dùng ORM (Object-Relational Mapping): **Sequelize** <br> <br>
 - Triển khai: <br>
   <ins>Bước 1:</ins> Tạo Sequelize và kết nối database
   ```
@@ -67,6 +67,71 @@ Trên đây là một chương trình đơn giản sử dụng **express.js**, c
   }
   ```
 ### 3.2. Thay thế công nghệ gọi request <br>
+- Ý tưởng: <br>
+  Thay đổi cách lấy dữ liệu từ Server: từ gọi đơn thuần sau mỗi 2 giây thành sử dụng một giao thức kết nối 2 chiều giữa Client và Server: **WebSocket** <br> <br>
+- Triển khai: <br>
+  <ins>Bước 1:</ins> Thêm thư viện Socket.IO
+  ```
+  <script src="/socket.io/socket.io.js"></script>
+  ```
+  <ins>Bước 2:</ins> Kết nối với sever Socket.IO
+  ```
+            const socket = io();
+
+            const locationPath = window.location.pathname.split("/");
+            const key = locationPath[locationPath.length - 1];
+
+            socket.emit("subscribe", key);
+
+            socket.on("initialValue", (data) => {
+                if (data.key === key) {
+                    document.getElementById("value").innerText =
+                        data.value || "No value";
+                }
+            });
+  ```
+  <ins>Bước 3:</ins> Thay đổi cập nhập từ mỗi 2s/lần sang theo thời gian thực
+  ```
+  socket.on("valueChanged", (data) => {
+                if (data.key === key) {
+                    document.getElementById("value").innerText = data.value;
+                }
+            });
+  ```
+  <ins>Bước 4:</ins> Quay lại giá trị đầu nếu lỗi
+  ```
+  async function fetchValue() {
+                try {
+                    const response = await fetch(`/get/${key}`);
+                    if (response.ok) {
+                        const data = await response.text();
+                        document.getElementById("value").innerText = data;
+                    } else {
+                        console.error("Failed to fetch value");
+                    }
+                } catch (error) {
+                    console.error("Error:", error);
+                }
+            }
+  ```
+  <ins>Bước 5:</ins> Kết nối Socket.IO với sever
+  ```
+  io.on("connection", (socket) => {
+    console.log("A client connected");
+
+    socket.on("subscribe", async (key) => {
+        console.log(`Client subscribed to key: ${key}`);
+        socket.join(key);
+        // Send current value to newly connected client
+        const value = await models.view(key);
+        socket.emit("initialValue", { key, value });
+    });
+
+    socket.on("disconnect", () => {
+        console.log("A client disconnected");
+    });
+});
+  ```
 ### 3.3. Triển khai kiến trúc Publisher-Subscriber & message broker <br>
 - Ý tưởng: <br>
   Thay thế kiến trúc RESTful của chương trình bằng kiến trúc hướng sự kiện (event-driven) <br> <br>

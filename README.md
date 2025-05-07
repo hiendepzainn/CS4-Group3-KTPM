@@ -122,7 +122,6 @@ Trên đây là một chương trình đơn giản sử dụng **express.js**, c
     socket.on("subscribe", async (key) => {
         console.log(`Client subscribed to key: ${key}`);
         socket.join(key);
-        // Send current value to newly connected client
         const value = await models.view(key);
         socket.emit("initialValue", { key, value });
     });

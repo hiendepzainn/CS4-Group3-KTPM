@@ -130,7 +130,7 @@ Trên đây là một chương trình đơn giản sử dụng **express.js**, c
     socket.on("disconnect", () => {
         console.log("A client disconnected");
     });
-});
+  });
   ```
 ### 3.3. Triển khai kiến trúc Publisher-Subscriber & message broker <br>
 - Ý tưởng: <br>
@@ -187,10 +187,8 @@ Trên đây là một chương trình đơn giản sử dụng **express.js**, c
                 const value = message.value.toString();
                 console.log(`Received data: ${value} to key ${key}`);
 
-                // Save to DB
                 await models.write(key, value);
                 
-                // Broadcast via WebSocket
                 io.emit("valueChanged", {
                     key: key,
                     value: value,
@@ -198,7 +196,7 @@ Trên đây là một chương trình đơn giản sử dụng **express.js**, c
                 getCPUUsage();
                 getMemoryUsage();
             },
-  });
+            });
   ```
 ## 4.	ĐÁNH GIÁ HIỆU NĂNG SAU NÂNG CẤP
 - **HIỆU NĂNG** <br>

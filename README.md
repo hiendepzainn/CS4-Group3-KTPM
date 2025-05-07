@@ -68,6 +68,73 @@ Trên đây là một chương trình đơn giản sử dụng **express.js**, c
   ```
 ### 3.2. Thay thế công nghệ gọi request <br>
 ### 3.3. Triển khai kiến trúc Publisher-Subscriber & message broker <br>
+- Ý tưởng: <br>
+  Thay thế kiến trúc RESTful của chương trình bằng kiến trúc hướng sự kiện (event-driven) <br> <br>
+- Triển khai: <br>
+  <ins>Bước 1:</ins> Tạo Container sử dụng docker-compose, cài đặt Kafka và các dependency liên quan
+  ```
+  version: '3'
+  services:
+    zookeeper:
+      image: confluentinc/cp-zookeeper:latest
+      environment:
+        ZOOKEEPER_CLIENT_PORT: 2181
+
+    kafka:
+      image: confluentinc/cp-kafka:latest
+      ports:
+        - 9092:9092
+      environment:
+        KAFKA_BROKER_ID: 1
+        KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+        KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+        KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+  ```
+  <ins>Bước 2:</ins> Tạo producer và consumer bằng KafkaJS
+  ```
+  const { Kafka } = require('kafkajs');
+
+  const kafka = new Kafka({
+    clientId: 'express-kafka-app',
+    brokers: ['localhost:9092']
+  });
+
+  const producer = kafka.producer();
+  const consumer = kafka.consumer({ groupId: 'express-group' });
+
+  module.exports = { kafka, producer, consumer };
+  ```
+  <ins>Bước 3:</ins> Đặt producer vào endpoint /set để tạo message từ dữ liệu gửi của người dùng
+  ```
+  app.post("/set/:key/:value", async (req, res) => {
+    await producer.send({
+        topic: TOPIC,
+        messages: [{ key: String(req.params.key), value: String(req.params.value) }],
+    });
+    res.send("Message published to Kafka");
+  });
+  ```
+  <ins>Bước 4:</ins> Đặt consumer trong start() để lấy message tự động và xử lý database
+  ```
+  consumer.run({
+            eachMessage: async ({ message }) => {
+                const key = message.key.toString();
+                const value = message.value.toString();
+                console.log(`Received data: ${value} to key ${key}`);
+
+                // Save to DB
+                await models.write(key, value);
+                
+                // Broadcast via WebSocket
+                io.emit("valueChanged", {
+                    key: key,
+                    value: value,
+                });
+                getCPUUsage();
+                getMemoryUsage();
+            },
+  });
+  ```
 ## 4.	ĐÁNH GIÁ HIỆU NĂNG SAU NÂNG CẤP
 - **HIỆU NĂNG** <br>
   Nhờ có Kafka và WebSocket, dữ liệu chỉ cần gửi một lần vào Kafka và được tự động phân phối đến các client đang theo dõi, thay vì gửi dữ liệu nhiều lần cho từng client. Nhờ đó, server chỉ cần duy trì dưới 50 kết nối WebSocket ổn định để phục vụ 100 client, thay vì phải xử lý khoảng 3.000 yêu cầu HTTP mỗi phút như trước đây

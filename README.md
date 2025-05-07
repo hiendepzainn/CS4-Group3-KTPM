@@ -208,9 +208,17 @@ Trên đây là một chương trình đơn giản sử dụng **express.js**, c
   Kafka lưu trữ toàn bộ log tin nhắn theo thứ tự thời gian, giúp theo dõi lịch sử và phát lại dữ liệu khi cần. Nhờ đó, hệ thống đảm bảo tính toàn vẹn, tin cậy và khả năng khôi phục ngay cả khi client tạm thời mất kết nối.
 ## 5.	MỘT VÀI ĐÁNH GIÁ THỰC NGHIỆM
 Hai chương trình được so sánh hiệu năng bằng một thí nghiệm nhanh. Sử dụng Postman, ta gửi một lượng lớn truy vấn set/get tới back-end, mỗi truy vấn cách nhau 60ms (tức 3000 lần/phút) và so sánh tiêu thụ CPU và Memory của 2 bên. Kết quả cho thấy, chương trình sau khi cải tiến có sự tối ưu hơn <br>
-- Khả năng chịu tải: <br>
+- **Khả năng chịu tải:** <br>
   - Phiên bản đầu: CPU và Memory tăng nhanh. CPU tiêu thụ tăng lên đến 30-45%, Memory giao động trong khoảng 90-93%
-  -	Phiên bản thứ hai : CPU và Memory ổn định hơn. CPU dao động trong 27-30%, Memory dao động trong khoảng 88-90% <br> <br>
-- Phản ứng với update lớn: <br>
+    ![image](https://github.com/user-attachments/assets/401d38ec-745f-487b-bcd0-670c92464df9)
+
+  -	Phiên bản thứ hai : CPU và Memory ổn định hơn. CPU dao động trong 27-30%, Memory dao động trong khoảng 88-90% <br>
+  ![image](https://github.com/user-attachments/assets/9c2cdf35-459f-436d-838f-92d1e62dae3a)
+
+- **Phản ứng với update lớn:** <br>
   - Phiên bản đầu: Memory tăng mạnh ban đầu, nhưng trở nên ổn định về sau. Memory tăng lên đến 90-93%, rồi giảm xuống, giao động trong khoảng 86-88%. CPU duy trì ở mức 30-40%
+    ![image](https://github.com/user-attachments/assets/265ea71b-155f-4cf3-8841-06a4f9074d29)
+
   - Phiên bản sau: CPU và Memory giữ ổn định trong suốt quá trình. CPU giao động trong khoảng 86-88% và Memory giao động trong khoảng 27-30%
+    ![image](https://github.com/user-attachments/assets/33e9e568-cc55-456d-949b-52b39f6fc9e6)
+
